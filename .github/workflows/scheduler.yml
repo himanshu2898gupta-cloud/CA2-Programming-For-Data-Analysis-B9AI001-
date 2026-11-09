@@ -1,8 +1,7 @@
-YAML
 name: Automated DeFi Risk Pipeline
 
 on:
- workflow_dispatch:
+  workflow_dispatch:
   schedule:
     - cron: '0 8 * * *'
 
