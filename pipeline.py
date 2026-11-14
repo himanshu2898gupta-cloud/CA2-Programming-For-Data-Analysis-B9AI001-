@@ -1,18 +1,21 @@
-import sqlite3
+﻿import sqlite3
 import requests
 import pandas as pd
 import numpy as np
 
+from src.transform.features import calculate_ltv, assign_risk_profile
+
 def run_defi_risk_pipeline():
-    print ("Step 1: Fetching Live Market Data From CoinGecko API")
+    print("Step 1: Fetching Live Market Data From CoinGecko API")
     try:
         coingecko_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
         res = requests.get(coingecko_url, timeout=10).json()
-        eth_price = res.get('ethereum',{}).get('usd', 3000.0)
+        eth_price = res.get('ethereum', {}).get('usd', 3000.0)
         print(f"Success! Live ETH Price Fetched: ${eth_price}")
     except Exception as e:
         print(f"API Warning: {e}.Using fallback price of $3000.")
         eth_price = 3000.0
+
     print("\n--- Step 2: Ingesting Wallet Telemetry & Calculating LTV---")
 
     raw_wallet_data = [
@@ -25,29 +28,14 @@ def run_defi_risk_pipeline():
     ]
     df = pd.DataFrame(raw_wallet_data)
     df['total_collateral_usd'] = df['eth_balance'] * eth_price
-    df['ltv_ratio'] = np.where(
-        df['total_collateral_usd'] > 0,
-        df['borrowed_usdc']/df['total_collateral_usd'],
-        0
-    )
+
+    df['ltv_ratio'] = df.apply(lambda row: calculate_ltv(row['borrowed_usdc'], row['total_collateral_usd']), axis=1)
+
     print("\n--- Step 3: Applying Behavioral Rule Engine---")
-    def assign_risk_profile(row):
-        net_worth = row['total_collateral_usd']
-        txs = row['tx_count']
-        ltv = row['ltv_ratio']
 
-        if ltv > 0.75 or (net_worth < 2000 and txs <10):
-            return 'High Risk / Liquidation Candidate'
-        elif net_worth > 50000 and txs <=20:
-            return 'Medium Risk / Inactive Whale'
-        elif net_worth > 10000 and txs >50:
-            return 'Low Risk / Prime DeFi User'
-        else:
-            return  'Medium Risk / Standard Active'
+    df['risk_profile'] = df.apply(lambda row: assign_risk_profile(row['total_collateral_usd'], row['tx_count'], row['ltv_ratio']), axis=1)
 
-    df['risk_profile'] = df.apply(assign_risk_profile, axis=1)
-
-    print(df[['wallet', 'total_collateral_usd' , 'ltv_ratio' , 'risk_profile']])
+    print(df[['wallet', 'total_collateral_usd', 'ltv_ratio', 'risk_profile']])
 
     print("\n--- Step 4: Persisting Data to local Sqlite Database---")
     db_name = "automated_defi_risk.db"
