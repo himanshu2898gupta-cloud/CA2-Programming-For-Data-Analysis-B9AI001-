@@ -1,21 +1,15 @@
 ﻿import sqlite3
-import requests
 import pandas as pd
 import numpy as np
 
+from src.ingestion.prices import get_validated_eth_price
 from src.transform.features import calculate_ltv, assign_risk_profile
 
 def run_defi_risk_pipeline():
-    print("Step 1: Fetching Live Market Data From CoinGecko API")
-    try:
-        coingecko_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-        res = requests.get(coingecko_url, timeout=10).json()
-        eth_price = res.get('ethereum', {}).get('usd', 3000.0)
-        print(f"Success! Live ETH Price Fetched: ${eth_price}")
-    except Exception as e:
-        print(f"API Warning: {e}.Using fallback price of $3000.")
-        eth_price = 3000.0
-
+    print("---Step 1: Ingesting & Cross-Validating Live Market Prices---")
+    eth_price = get_validated_eth_price()
+    print(f"Verified ETH Price: ${eth_price}")
+    
     print("\n--- Step 2: Ingesting Wallet Telemetry & Calculating LTV---")
 
     raw_wallet_data = [
