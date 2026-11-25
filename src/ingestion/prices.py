@@ -12,7 +12,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-def fetch_with_retry(url: str, headers: dict = None, max_retries: int = 3) -> dict:
+def fetch_with_retry(url: str, headers: dict = {}, max_retries: int = 3) -> dict:
     """
     URL se JSON data fetch karta hai.
     Agar rate limit (429) ya server error aaye, toh exponential backoff (2s, 4s, 8s) se retry karta hai.
@@ -36,7 +36,7 @@ def fetch_with_retry(url: str, headers: dict = None, max_retries: int = 3) -> di
 
     raise RuntimeError(f"Failed to fetch data from {url} after {max_retries} attempts.")
 
-def fetch_coingecko_price(token_id: str = "ethereum", demo_api_key: str = None) -> float:
+def fetch_coingecko_price(token_id: str = "ethereum", demo_api_key: str = '') -> float:
     """CoinGecko API se live USD price fetch karta hai."""
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd"
     headers = {}
